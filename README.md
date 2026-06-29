@@ -6,6 +6,24 @@ TST
 
 ## 2026-06-29
 
+### OpenAlgo Connection Optimization
+- Implemented WebSocket subscription reference counting inside `src/openalgo/wsClient.ts`. When multiple components (e.g. Chart, Option Chain, Account Manager) subscribe to the same symbol, the WebSocket client increments a reference count and only issues a socket unsubscribe command once all subscribers release it. This prevents components from accidentally killing active data feeds for other parts of the platform.
+- Exposed a `ws:authenticated` and `ws:disconnected` event path on the global event bus, allowing components to dynamically react to changes in WebSocket connection/authentication status.
+- Eliminated the redundant secondary WebSocket connection (`positionWs`) in `src/ui/AccountManager.ts`, saving browser and server resources.
+- Optimized the Account Manager to delegate position and holding symbol subscriptions to the shared global `wsClient` instance, maintaining background updates and P&L tracking even when the Account Manager dock is collapsed.
+
+### Mobile Chart HUD UI Optimization
+- Added mobile override styles for `.chart-series-legend` to wrap elements dynamically on smaller device screen widths (preventing clipping of OHLC and price change stats).
+
+### Chart Trading Overlays Redesign (TradingView Style)
+- Redesigned active positions, active orders, and order projection overlays to render as unified, gap-free, professional contiguous pills, matching TradingView's visual appearance.
+- Replaced separated badge rectangles and close/cancel buttons with carefully overlapped segments utilizing left/right corner straighteners and dynamic text-based segment width calculations.
+- Centralized alignment of text inside all overlay badges using `align: 'center'` and `baseline: 'middle'`.
+- Made the bracket connector brace line on order projections position itself dynamically relative to the console's horizontal starting position.
+- Refined styling to keep line and pill borders as solid side colors (LONG/BUY/SHORT/SELL) while dynamically color-coding only the Unrealized P&L text (green for profit, red for loss) inside the white-background segment.
+- Split position and order details segments into left-aligned (e.g., Average Price, Quantity) and right-aligned (P&L, target details) parts for a highly polished, premium UI presentation.
+- Implemented fully interactive, clickable close buttons (`✕`) directly on the Take Profit (TP) and Stop Loss (SL) order projection tag pills, automatically updating the Order Panel draft checkboxes/states on click.
+
 ### Paper Trading and Account Manager Alignment
 - Enabled the order **Modify** button for paper orders in the Account Manager Orders tab.
 - Modified the `modifyOrder` function and the `'paper-order:modify'` event in the Paper Broker to support updating both limit price and trigger price on paper orders.
@@ -22,6 +40,12 @@ TST
 - Added support for displaying `(trigger)` text on paper stop/trigger (`STOP`) orders on the chart active order overlays.
 - Replaced the browser-native `window.confirm` modal with a custom HTML/CSS inline confirmation block within the settings popover, ensuring it bypasses Chrome's strict iframe dialog suppression and cross-origin security blocks (such as those in Gemini Code Assist preview tools).
 - Implemented a self-healing **WebSocket Stream Watchdog** inside `wsClient.ts`. The watchdog runs a background check every 5 seconds; if an active real-time data subscription (mode 2 or 3) goes 15 seconds without receiving a tick message (e.g., due to silent server-side subscription pool downgrades when secondary connections disconnect), it automatically dispatches a silent unsubscribe/subscribe sequence to upgrade the pool and restore the live chart update stream.
+- Implemented **Paper Trading Holdings** and overnight carryover simulation:
+  - Added a `holdings` array to `PaperAccountState` and tracked `openedDate` (YYYY-MM-DD) on positions.
+  - Automatically transfers equity `CNC` positions opened on previous days to the Holdings tab upon application load/init.
+  - Wired live WebSocket and LTP quote updates to compute unrealized P&L in real time for paper holdings.
+  - Added an **Exit** button inside the Holdings tab which triggers a paper exit order (reducing holdings quantity upon execution).
+  - Added a **Simulate Next Day (Overnight)** button to the settings popover, allowing users to instantly roll positions over to the next day for test-driving holdings and overnight settlement flows.
 
 ## 2026-06-26
 
