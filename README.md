@@ -4,6 +4,108 @@ TST
 ---
 # Changelog
 
+## 2026-07-01
+
+### Interactive Brackets UI Styling & Hit-Test Fix
+* Fixed invisible hit-test rects in [activePosition.ts](src/overlays/activePosition.ts) (`reverse_btn`, `tp_drag_btn`, `sl_drag_btn`, `confirm_btn`, `discard_btn`, `tp_cancel_btn`, `sl_cancel_btn`) from `style: 'stroke'` with `rgba(0,0,0,0)` to `style: 'stroke_fill'` with `rgba(0,0,0,0.01)`. The previous `stroke` mode produced no filled canvas area, making the buttons unreliable for pointer hit-testing and causing clicks to not register.
+* Added `activeColor` and `activeBorderColor` transparent overrides to the `rect` and new `circle` figure-type styles in the position overlay configuration in [ChartManager.ts](src/chart/ChartManager.ts). This prevents KlineCharts' internal selection engine from painting solid blue backgrounds over the custom button and bracket pill figures when the overlay is hovered or selected.
+* Applied the same `activeColor`/`activeBorderColor` transparent overrides to the active order overlay styles in `ChartManager.ts` for consistency.
+
+### Position Reverse Without Confirmation
+* Removed the `confirm()` dialog from the `position:manage:reverse` event handler in [ChartManager.ts](src/chart/ChartManager.ts). Clicking the Reverse button now immediately exits the current position and places an opposite market order of the same quantity without prompting.
+
+### Trading Execution Marks on Chart
+* Implemented a new custom overlay `executionMark` in [executionMark.ts](src/overlays/executionMark.ts) (registered in [index.ts](src/overlays/index.ts)) to visualize buy/sell entries and exits on the chart.
+* Designed high-visibility execution marks placed outside the candle wicks (Royal Blue vertical **UP** arrow below the low wick for BUYs; Pink/Magenta vertical **DOWN** arrow above the high wick for SELLs).
+* Implemented on-the-fly chronological trade sorting and running position size reconstruction in [ChartManager.ts](src/chart/ChartManager.ts) to classify orders as either opening/increasing a position (First Order / Entry) or closing/reducing a position (Exit Order).
+* Draws horizontal triangles at the execution price level: pointing **RIGHT** `▶` for First Orders (Entry) and pointing **LEFT** `◀` for Exit Orders.
+* Wired dynamic crosshair-based hover detection within `handleCrosshairChange` in `ChartManager.ts`. When the crosshair moves within 20px of any execution mark's screen-coordinate, the tooltip is rendered and snapped exactly to the execution mark, ensuring 100% reliable hover activation.
+* Implemented a single-line DOM execution tooltip styled to match the `.volume-cluster-tooltip` layout and dynamically colored borders, formatting trade info as requested (e.g. `65 QTY 1234.85 01 Jul 11:40:31 am`).
+* Added `trades:update` and `live-trades:update` event handlers to automatically sync and display the execution marks when trade history is updated.
+* Integrated the "Execution marks" and "Execution labels" toggles into the Settings modal's Trading tab in [SettingsModal.ts](src/ui/SettingsModal.ts) and configured them to automatically persist in localStorage and sync dynamically.
+
+### Responsive Option Chain Table Layout & Auto Strike Centering
+* Added a `min-width: 960px;` property to `.oa-optionchain-table` in [style.css](src/style.css) to prevent column overlapping and squishing on small mobile viewports, enabling smooth left-and-right horizontal scrolling.
+* Programmed horizontal scroll auto-centering logic `centerScrollOnStrike` in [OptionChainModal.ts](src/ui/OptionChainModal.ts) using `requestAnimationFrame`. Whenever the Option Chain modal is opened or a new underlying symbol/expiry date is loaded, the horizontal scroll position of the wrapper container is automatically centered. This aligns the Strike column in the middle of the screen on mobile, saving users from manual horizontal scrolling.
+
+### OpenAlgo WebSocket Connection & Recovery Optimizations
+* Implemented tracking of the connected API key (`connectedApiKey`) in [wsClient.ts](src/openalgo/wsClient.ts) and configured the client to automatically drop and reconnect when either the WebSocket URL or the API key changes.
+* Configured [SettingsModal.ts](src/ui/SettingsModal.ts) to track initial WebSocket parameters and automatically trigger a WebSocket reconnect on close if credentials or endpoints were changed.
+* Updated error handling in `wsClient.ts` to call `this.socket.close()` upon errors to force-trigger the standard reconnect cycle rather than hanging silently.
+* Configured the fallback JSON `ping` message processor in `wsClient.ts` to respond with `{"type": "pong", "action": "pong"}` to satisfy all variants of the OpenAlgo WebSocket server check, preventing disconnects.
+
+### Interactive Brackets Drag-to-Add & Position Reverse
+* Implemented a premium position management workflow directly on the chart’s active position line inside [activePosition.ts](src/overlays/activePosition.ts).
+* Added a `Reverse (⇅)` button that prompts confirmation and triggers a market order of twice the current quantity in the opposite direction to flip the position.
+* Added green `TP` and orange `SL` dashed buttons that allow dragging out Take Profit and Stop Loss levels with connector lines, handles, and real-time P&L estimates.
+* Created `Confirm` and `Discard` buttons on the active position line to submit or cancel the projected brackets.
+* Linked bracket submissions to the broker: submits LIMIT (TP) and STOP (SL) orders under a single `parentId` for paper trading (auto OCO), and cancels existing open orders before placing Limit (TP) and Stop Loss Market (SL-M) orders for live trading.
+
+### Interactive Control Handle Highlight Readability & Hit-Test Fix
+* Resolved an issue where interactive handles (`reverse_btn`, `tp_drag_btn`, `sl_drag_btn`, `confirm_btn`, `discard_btn` in [activePosition.ts](src/overlays/activePosition.ts) and `tp_close_btn`, `sl_close_btn` in [orderProjection.ts](src/overlays/orderProjection.ts)) were overridden with solid blue backgrounds by KlineCharts' native pointer highlights.
+* Overrode default overlay `rect` and `point` styles to `transparent` inside [ChartManager.ts](src/chart/ChartManager.ts) for `orderProjection`, `activeOrder`, and `activePosition` overlays, preventing selected/active highlighting from painting them blue.
+* Switched the color of transparent target interactive rects from `'transparent'` to `'rgba(0, 0, 0, 0.01)'`. This ensures the canvas renderer does not optimize them out, making them fully hit-testable and clickable under all states.
+* Fixed a bug in [OrderPanel.ts](src/ui/OrderPanel.ts) where the `'order:projection:change'` event handler failed to call `this.updateOrderProjection()` after updating input fields. This ensures that clicking the `✕` close button on the TP/SL order projection tag pills directly on the chart immediately updates/clears the Order Panel draft states and removes the dashed projection lines from the chart.
+
+### Position Overlays Contiguous Buttons Layout (TradingView Style)
+* Redesigned active position buttons (`Reverse`, `TP`, `SL`, `Confirm`, `Discard`) in [activePosition.ts](src/overlays/activePosition.ts) to render as contiguous segments of the unified main position pill, matching the clean contiguous treatment of `LONG 100` and `Avg/P&L` segments.
+* Aligned segments side-by-side using a 1px boundary overlap (`curX += width - 1`) to share borders and eliminate double-thick lines and gaps.
+* Configured custom corner rounding for individual segments: leftmost segment gets rounded left corners (`[4, 0, 0, 4]`), middle segments get straight corners (`[0, 0, 0, 0]`), and the rightmost segment gets rounded right corners (`[0, 4, 4, 0]`).
+* Removed the `key` property from visual backgrounds and labels so that KlineCharts' selection engine does not paint over their white, green, red, or blue custom borders and text.
+* Added transparent event-capturing overlay rects with `key` and `ignoreEvent: false` styled with `color: 'transparent'`, `borderColor: 'transparent'`, `borderSize: 0` (omitting `style: 'stroke_fill'`). This prevents the engine from drawing highlight backgrounds, keeping them completely invisible while capturing clicks and drag actions flawlessly.
+
+### Paper Trading Available Balance & Holding Capital Calculations Fix
+* Fixed an issue where open holdings or active positions did not deduct from the **AVAILABLE** balance in paper trading.
+* Implemented a dynamic used-margin calculation method (`recalculateUsedMargin`) in [PaperBroker.ts](src/paper/PaperBroker.ts) that aggregates blocked capital for positions/holdings depending on their product type (CNC blocks 100%, MIS blocks 20%, NRML blocks 10%).
+* Centralized state persistence in `PaperBroker.ts` under a new `saveState` helper to ensure the calculated used margin is always kept in sync and saved to `localStorage`.
+* Updated [AccountManager.ts](src/ui/AccountManager.ts) to dynamically calculate used margin and deduct it from the account's cash balance when rendering paper trading funds, updating both **AVAILABLE** and **USED** fields correctly.
+
+## 2026-06-30
+
+### Chart Data Gap Auto-Healing & Offline Warning Banner
+* Implemented automatic background data catch-up when the WebSocket reconnects, triggered by the `ws:authenticated` event.
+* Added a dynamic tick-gap detector that calculates the time difference between incoming live ticks and the chart's last completed candle. If a gap greater than `1.5 * timeframe_duration` is identified (e.g. 90 seconds on a 1-minute chart), it automatically pulls missing candles in the background.
+* Configured a thread-safe reload lock (`isReloading` flag) to prevent concurrent overlapping history requests to OpenAlgo on rapid tick updates, preserving server rate limits.
+* Added a custom offline notice bar (`offlineBar-VQqbCElH`) matching TradingView styling, injected above the Top Bar. It appears when connection is lost (or the socket drops) in Online Mode and vanishes immediately upon reconnection.
+* Modified the historical data cache utility (`clearOnlineCache`) in `src/chart/onlineLoader.ts` to support optional selective parameter clearing.
+* Added manual **Refresh** action buttons in both the desktop Top Bar control header and the mobile dropdown options menu.
+* Deactivated WebSocket watchdog checks and re-subscription tasks during off-market hours (`status === 'closed'`) in `src/openalgo/wsClient.ts`, avoiding continuous API disconnect/reconnect loops to the broker server.
+* Implemented conditional visibility rules for the price axis countdown to bar close: disabled on closed markets for intraday timeframes, but active 24/7 on Daily (D), Weekly (W), and Monthly (M) timeframes.
+* Optimized the chart reflow loop in `src/chart/ChartManager.ts` by skipping periodic `chart.resize()` redraw ticks when the countdown is hidden, lowering CPU footprint.
+* Restored mobile access to the Watchlist and Alerts panel overlay by adding dedicated toggle triggers within the Top Bar's mobile options menu (ellipsis `...`), routing them to open the full-screen layout drawer since the right dock is hidden on small screens.
+* Elevated z-index values of dialog modals (Indicator, Goto, Settings, Volume Profile, and Symbol Search) in `src/style.css` (ranging from `2100` to `2140`) to ensure they open in front of the fixed mobile watchlist container (`z-index: 2000`), allowing seamless symbol search additions.
+
+### Production JavaScript Obfuscation Pipeline
+* Integrated a decoupled post-build JavaScript Obfuscation step for production builds using the programmatic API of the official `javascript-obfuscator` library.
+* Created [scripts/obfuscate.mjs](scripts/obfuscate.mjs) to parse compiled assets in `dist/assets/` post-bundling.
+* Added configurable domain locking using the environment variable `OBFUSCATION_DOMAIN_LOCK` (falling back to standard local/GitHub Pages domains if undefined).
+* Implemented double-obfuscation prevention by prepending an official production banner comment and optimized the detection using `startsWith(BANNER)` matching to skip file corruption on repeat builds.
+* Created [scripts/clean_assets.mjs](scripts/clean_assets.mjs) to safely clear stale assets inside `dist/assets/` before every build, preserving custom data in `dist/data/` untouched.
+* Excluded small runtime files (size < 5 KB) and Web Worker scripts (using regex `/\.worker(?:-[a-zA-Z0-9_-]+)?\.js$/`) to minimize performance and runtime overhead.
+* Disabled source map generation (`sourcemap: false`) in [vite.config.mjs](vite.config.mjs) to prevent exposing the original source code.
+* Configured script execution inside the `build` and `build:static` tasks in [package.json](package.json).
+* Added targeted build exception rules to halt deployment with exit code 1 if the main chunk fails to obfuscate, but output warnings for other minor files.
+
+### Frictionless Order Execution (Confirmation Removal)
+* Removed all browser-blocking browser-native `alert(...)` and `window.confirm(...)` popups during order placement, modification, reversing, flattening, and cancellation in both paper and live execution modes.
+* Implemented a new non-blocking status notification label (`this.headerStatusEl`) in the Account Manager dock header (`oa-account-dock-header`) in [AccountManager.ts](src/ui/AccountManager.ts) listening to `'trading:status:notify'` events.
+* Routed all order success confirmations and warnings/errors to the Account Manager header status line (color-coded green for success, red/orange for errors) and to the local Order Panel status bar, ensuring high-speed trading is never interrupted by blocking browser alerts.
+
+### Collapsible Watchlist Groups & Pure Data Details Panel
+* Implemented collapsible group headers (`INDICES`, `STOCKS`, `FUTURES`, `FOREX`) in [OrderPanel.ts](src/ui/OrderPanel.ts) allowing users to expand or collapse sections dynamically.
+* Added expand/collapse carets with smooth `-90deg` rotation transitions defined in [style.css](src/style.css), caching collapse preferences in `localStorage` under `trading4sight_watchlist_collapsed_groups`.
+* Pre-populated the default watchlist with the exact list of index, equity, futures, and currency pairs matching the reference: `SPX`, `NDQ`, `DJI`, `VIX`, `DXY` (Indices); `AAPL`, `TSLA`, `NFLX` (Stocks); `USOIL`, `GOLD`, `SILVER` (Futures); and `EURUSD`, `GBPUSD`, `USDJPY` (Forex).
+* Added group-level deletion controls (hover-visible trashcan SVG buttons next to group headers) that bulk-remove all child symbols and clean up active WebSocket subscriptions instantly.
+* Replaced the text character close buttons (`✕`) in individual row columns with premium TV-style trashcan SVG icons.
+* Redesigned the bottom details card to display only live, data-backed fields populated from OpenAlgo quotes (Logo initials, Ticker, Exchange name, manifest description, LTP, currency, Real-time badge, and colored change/change% metrics), stripping all mock statistics, profile tables, and news sections.
+* Maintained micro-DOM patching inside `updateWatchlistDom(...)` to update both table rows and the details panel on live ticks without layout reflows.
+* **Watchlist Column Spacing Alignment**: Added grid child overrides (`nth-child`) in [style.css](src/style.css) to align headers and numeric fields (`Last`, `Chg`, `Chg%`) to the right, aligning columns cleanly.
+* **Dynamic Option Symbol Formatting**: Added `parseSymbolDisplayName` and `parseOptionDescription` to parse raw option contracts (e.g. `BANKNIFTY28JUL2632500CE` into `BANKNIFTY 28Jul 32500 CE`) dynamically, preventing text truncation in columns and displaying clean, human-readable labels.
+* **Dynamic Market Hours Indicators & Status Dots**: Replaced the static online mode logic with the target exchange's timing rules from [marketHours.ts](src/utils/marketHours.ts). Standardized the watchlist row and card indicator dots to show dynamic status: green for Open, grey for Closed, orange for Pre-market, and blue for Post-market based on real-time IST clock timings.
+* **Option Charting and LTP Integration**: Verified and ensured option symbol selection works seamlessly, loading option charts dynamically and subscribing to real-time LTP ticks when clicked from the watchlist.
+* **Watchlist WebSocket Subscription Symbol Correction**: Corrected the symbol parameter inside `addSymbolToWatchlist()` to pass the raw broker symbol code (`toLiveSymbol(symbol)`) to `wsClient.subscribe()` instead of the human-readable formatted label string. This resolves token converter mapping warning anomalies and feed subscription delays.
+* **Separated Online/Offline Watchlists & OpenAlgo Symbol Alignment**: Separated watchlist localStorage keys (`trading4sight_watchlist_items_online` and `trading4sight_watchlist_items_offline`) and symbol sets for Online vs Offline modes. In Online mode, the defaults are populated with valid OpenAlgo standard symbol formats (e.g. `BANKNIFTY`, `SBIN`, `BANKNIFTY26MAR26FUT`), eliminating chart chunk history fetch errors and token conversion errors. Mode transitions dynamically unsubscribe, reload, and re-subscribe symbols.
+
 ## 2026-06-29
 
 ### OpenAlgo Connection Optimization
