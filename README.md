@@ -27,9 +27,10 @@ TST
 ## 2026-07-01
 
 ### Interactive Brackets UI Styling & Hit-Test Fix
-* Fixed invisible hit-test rects in [activePosition.ts](src/overlays/activePosition.ts) (`reverse_btn`, `tp_drag_btn`, `sl_drag_btn`, `confirm_btn`, `discard_btn`, `tp_cancel_btn`, `sl_cancel_btn`) from `style: 'stroke'` with `rgba(0,0,0,0)` to `style: 'stroke_fill'` with `rgba(0,0,0,0.01)`. The previous `stroke` mode produced no filled canvas area, making the buttons unreliable for pointer hit-testing and causing clicks to not register.
-* Added `activeColor` and `activeBorderColor` transparent overrides to the `rect` and new `circle` figure-type styles in the position overlay configuration in [ChartManager.ts](src/chart/ChartManager.ts). This prevents KlineCharts' internal selection engine from painting solid blue backgrounds over the custom button and bracket pill figures when the overlay is hovered or selected.
-* Applied the same `activeColor`/`activeBorderColor` transparent overrides to the active order overlay styles in `ChartManager.ts` for consistency.
+* Root-caused the solid blue backgrounds on button labels and bracket pill texts in [activePosition.ts](src/overlays/activePosition.ts) to missing `backgroundColor: 'transparent'` on text figures. KlineCharts' default overlay text style (`backgroundColor: Color.BLUE`) was bleeding through the style merge for all 11 text figures that lacked this explicit override.
+* Added `backgroundColor: 'transparent'`, `borderColor: 'transparent'`, and `borderSize: 0` to all text figures in `activePosition.ts` — Discard, Confirm, ⇅ Reverse, TP, SL button labels, and TP/SL bracket pill qty/PnL/✕ texts.
+* Fixed invisible hit-test rects (`reverse_btn`, `tp_drag_btn`, `sl_drag_btn`, `confirm_btn`, `discard_btn`, `tp_cancel_btn`, `sl_cancel_btn`) from `style: 'stroke'` with `rgba(0,0,0,0)` to `style: 'stroke_fill'` with `rgba(0,0,0,0.01)` for reliable canvas pointer hit-testing.
+* Added overlay-level `text`, `circle` style overrides with transparent `backgroundColor`/`borderColor` in [ChartManager.ts](src/chart/ChartManager.ts) as a safety net fallback for both `activePosition` and `activeOrder` overlays.
 
 ### Position Reverse Without Confirmation
 * Removed the `confirm()` dialog from the `position:manage:reverse` event handler in [ChartManager.ts](src/chart/ChartManager.ts). Clicking the Reverse button now immediately exits the current position and places an opposite market order of the same quantity without prompting.
@@ -208,45 +209,45 @@ TST
 - Added support for Option Chain settings persistence (`localStorage.getItem('oa_optionchain_popup_prefs_v1')`) including visible columns toggles, custom column ordering, strikes count, and visual style (solid vs gradient bar indicators).
 
 ### OpenAlgo Trading Panel Integration
-- Replaced the buy/sell panel layout and logic in [OrderPanel.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/OrderPanel.ts) and [style.css](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/style.css) with the OpenAlgo Trading Panel design from the reference project.
+- Replaced the buy/sell panel layout and logic in [OrderPanel.ts](src/ui/OrderPanel.ts) and [style.css](src/style.css) with the OpenAlgo Trading Panel design from the reference project.
 - Implemented the segmented Buy/Sell buttons (`.oa-segment`) and order type chips (`MARKET`, `LIMIT`, `SL`, `SL-M`) in the Trade view.
 - Integrated the quantity stepper (`.oa-stepper`) with auto-snapping multiples derived from the `/api/v1/search` endpoint via OpenAlgo REST POST requests for F&O exchanges (`NFO`, `MCX`, `BFO`, `CDS`, `BCD`), defaulting to 1 for cash exchanges.
 - Added a conditional input visibility layout where Limit Price is visible only for `LIMIT`/`SL` type orders and Trigger Price is visible only for `SL`/`SL-M` type orders.
 - Implemented an inline 5-level DOM grid inside the Trade view showing real-time bids/asks and quantities.
 - Built a standalone DOM view containing a full 11-level depth ladder with column headers, total buy/sell volumes, overall volume, OI, and high/low values. Added Pause/Resume auto-refresh controls and a Refresh button.
 - Preserved dual-track execution support: paper trading orders are routed via `paper-order:submit` and `paper-order:cancel` event bus channels, while live orders are routed via REST endpoint calls with safety confirmations (`window.confirm`).
-- Added CSS styles for all `.oa-` trading panel and DOM layout selectors to [style.css](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/style.css).
+- Added CSS styles for all `.oa-` trading panel and DOM layout selectors to [style.css](src/style.css).
 - Disabled confirmation prompt dialogs (`window.confirm`) during standard order form and DOM ladder order placement actions to ensure instant execution.
 
 ## 2026-06-19
 
 ### Fyers-Style Depth of Market (DOM) Price Ladder
-- Rebuilt [OrderPanel.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/OrderPanel.ts) and [style.css](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/style.css) to emulate the layout, density, and functional capabilities of the Fyers web trading ladder interface.
+- Rebuilt [OrderPanel.ts](src/ui/OrderPanel.ts) and [style.css](src/style.css) to emulate the layout, density, and functional capabilities of the Fyers web trading ladder interface.
 - Removed the grid column headers (`Bid Qty`, `Price`, `Ask Qty`) to maximize vertical space and centered the ladder around the Last Traded Price (LTP) with bold weights and custom row highlights.
 - Aligned Bid quantities to the right and Ask quantities to the left (snug against the center price border), with volume histogram fills that grow outwards from the center price axis.
 - Added a position-aware **Position Status Row** displaying the active symbol's current position size (color-highlighted green for long, red for short) and average price, integrated with both paper and live execution brokers.
 - Reorganized bottom action controls into a compact 3x3 grid for Buy/Sell Market, Units Input, Flatten, CXL All, and Reverse, and implemented targeted Cancel Bids and Cancel Asks buttons mapping to both simulation and live REST APIs.
-- Modified [AccountManager.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/AccountManager.ts) to broadcast `live-positions:update` events, allowing real-time synchronization between the broker state and DOM position stats.
+- Modified [AccountManager.ts](src/ui/AccountManager.ts) to broadcast `live-positions:update` events, allowing real-time synchronization between the broker state and DOM position stats.
 
 ### Account Manager & Paper Trading Engine
-- Implemented the core paper trading engine in [types.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/paper/types.ts), [PaperStore.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/paper/PaperStore.ts), and [PaperBroker.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/paper/PaperBroker.ts) supporting simulated market, limit, stop, and stop-limit orders with local storage persistence and real-time tick calculations.
-- Integrated order execution routing in [OrderPanel.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/OrderPanel.ts) with a prominent `PAPER` vs `LIVE` execution badge. Added safety confirmations (`window.confirm`) and validation constraints (CORS headers, API keys, online checks) for live broker executions via OpenAlgo.
-- Rebuilt [AccountManager.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/AccountManager.ts) to display dynamic balance metrics (Account Balance, Equity, Realized P&L, Unrealized P&L, Available Funds) and tab-based logs (Positions, Orders, History, Journal, Balance/Ledger ledger).
+- Implemented the core paper trading engine in [types.ts](src/paper/types.ts), [PaperStore.ts](src/paper/PaperStore.ts), and [PaperBroker.ts](src/paper/PaperBroker.ts) supporting simulated market, limit, stop, and stop-limit orders with local storage persistence and real-time tick calculations.
+- Integrated order execution routing in [OrderPanel.ts](src/ui/OrderPanel.ts) with a prominent `PAPER` vs `LIVE` execution badge. Added safety confirmations (`window.confirm`) and validation constraints (CORS headers, API keys, online checks) for live broker executions via OpenAlgo.
+- Rebuilt [AccountManager.ts](src/ui/AccountManager.ts) to display dynamic balance metrics (Account Balance, Equity, Realized P&L, Unrealized P&L, Available Funds) and tab-based logs (Positions, Orders, History, Journal, Balance/Ledger ledger).
 - Integrated live polling of OpenAlgo accounts endpoints (`/funds`, `/positionbook`, `/orderbook`, `/tradebook`) when the trading engine is set to `live`, alongside real-time tick-update bindings for P&L tracking.
 - Added interactive UI exit controls directly in the Account Manager table to cancel pending orders and close active positions at market in both simulated and live modes.
 - Added a vertical resize handle (`.account-manager-resizer`) at the top border of the Account Manager, enabling dynamic vertical mouse resizing with smooth transitions disabled during drag operations (`.account-manager--resizing`), height clamping boundaries (38px to 80% window height), and persistence of custom height and expansion states in `localStorage`.
 - Wired the header `maximize` button to toggle the panel height between 80% of window and default expanded height of 316px, triggering standard window resize events for automatic chart fit recalculation.
-- Wired module boots in [main.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/main.ts) to initialize the paper broker singleton at startup.
+- Wired module boots in [main.ts](src/main.ts) to initialize the paper broker singleton at startup.
 
 ## 2026-06-17
 
 ### OpenAlgo CORS & WebSocket Deployment Fixes
-- Added the `ngrok-skip-browser-warning` header to all OpenAlgo REST API POST requests in [client.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/openalgo/client.ts) to bypass the ngrok warning screen and prevent CORS blocks when deployed to remote environments (e.g. GitHub Pages).
-- Fixed the WebSocket URL formatter in [wsClient.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/openalgo/wsClient.ts) to use `ws://` instead of `wss://` for local loopback addresses (like `127.0.0.1` or `localhost`). This allows browsers on HTTPS origins to successfully connect to the local WebSocket server since loopback is exempt from mixed-content blocking.
-- Fixed a bug where the application got stuck on "Loading chart..." when deployed to remote/static environments (like GitHub Pages) due to the symbols manifest being empty. The check in `mountChartIfReady()` inside [main.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/main.ts) was updated to allow chart mounting to proceed in online mode regardless of the presence of local CSV symbols.
-- Fixed a bug in [onlineLoader.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/onlineLoader.ts) where scroll-back paging was broken in online mode. Corrected the loader checks to use the `forward` load type rather than `backward` (since KlineCharts represents scroll-back as `forward`), and implemented `onlineHasMoreMap` to track server-side historical data availability. This ensures `more.forward` correctly triggers subsequent historical fetches past the initial 90-day page until server-side data is fully exhausted.
-- Fixed a bug where the Volume Cluster overlay plotted for only 1-2 days on lower-TF charts (e.g. 5m chart) even when "History Range" was set to "6 months". Added `customDurationDays` parameters to `getOnlineCachedBars()` and `fetchCachedBars()` in [onlineLoader.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/onlineLoader.ts) to request the full settings range duration. Updated [volumeCluster.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/overlays/volumeCluster.ts) to check the resolved source history range and trigger a new fetch when settings are updated to a wider range.
-- Added a built-in HTTP proxy router in the production distribution server template inside [vite.config.mjs](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/vite.config.mjs) so that running the built app locally (via `node dist/server.mjs` or `npm run serve:dist`) automatically forwards `/api` requests to the local OpenAlgo backend on port 5000, eliminating CORS issues for production builds.
+- Added the `ngrok-skip-browser-warning` header to all OpenAlgo REST API POST requests in [client.ts](src/openalgo/client.ts) to bypass the ngrok warning screen and prevent CORS blocks when deployed to remote environments (e.g. GitHub Pages).
+- Fixed the WebSocket URL formatter in [wsClient.ts](src/openalgo/wsClient.ts) to use `ws://` instead of `wss://` for local loopback addresses (like `127.0.0.1` or `localhost`). This allows browsers on HTTPS origins to successfully connect to the local WebSocket server since loopback is exempt from mixed-content blocking.
+- Fixed a bug where the application got stuck on "Loading chart..." when deployed to remote/static environments (like GitHub Pages) due to the symbols manifest being empty. The check in `mountChartIfReady()` inside [main.ts](src/main.ts) was updated to allow chart mounting to proceed in online mode regardless of the presence of local CSV symbols.
+- Fixed a bug in [onlineLoader.ts](src/chart/onlineLoader.ts) where scroll-back paging was broken in online mode. Corrected the loader checks to use the `forward` load type rather than `backward` (since KlineCharts represents scroll-back as `forward`), and implemented `onlineHasMoreMap` to track server-side historical data availability. This ensures `more.forward` correctly triggers subsequent historical fetches past the initial 90-day page until server-side data is fully exhausted.
+- Fixed a bug where the Volume Cluster overlay plotted for only 1-2 days on lower-TF charts (e.g. 5m chart) even when "History Range" was set to "6 months". Added `customDurationDays` parameters to `getOnlineCachedBars()` and `fetchCachedBars()` in [onlineLoader.ts](src/chart/onlineLoader.ts) to request the full settings range duration. Updated [volumeCluster.ts](src/overlays/volumeCluster.ts) to check the resolved source history range and trigger a new fetch when settings are updated to a wider range.
+- Added a built-in HTTP proxy router in the production distribution server template inside [vite.config.mjs](vite.config.mjs) so that running the built app locally (via `node dist/server.mjs` or `npm run serve:dist`) automatically forwards `/api` requests to the local OpenAlgo backend on port 5000, eliminating CORS issues for production builds.
 
 ## 2026-06-16
 
@@ -261,54 +262,53 @@ TST
 - Modified the popover logic to conditionally close during component re-render only if the status dot element is not found in the DOM (e.g. legend hidden or component destroyed), resolving flickering on real-time chart ticks.
 
 ### Volume Source Selection via Search in Online Mode
-- Implemented search-callback support in [SymbolSearchModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/SymbolSearchModal.ts) via a custom `onSelect` callback payload to allow selecting any symbol from online search without changing the active chart symbol.
-- Integrated search capability into [getSourceSymbolOptions](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/config/symbols.ts) by displaying the currently active custom symbol and offering a "Search online symbol..." trigger dropdown option when in online mode.
-- Wired search trigger and selection callbacks into the volume source select fields of all drawing overlay settings modals: [SessionVolumeProfileModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/SessionVolumeProfileModal.ts), [FixedRangeVolumeProfileModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/FixedRangeVolumeProfileModal.ts), [TpoProfileModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/TpoProfileModal.ts), and [VolumeClusterModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/VolumeClusterModal.ts).
-- Integrated search triggers into [IndicatorSettingsModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/IndicatorSettingsModal.ts) for indicator volume source selection (e.g., Volume YSTC) to fully support selecting alternate symbols via search in online mode.
-- Fixed z-index layering in [style.css](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/style.css) by increasing `.symbol-search-modal` z-index to `50` so that it renders in front of settings modals (z-index `45`/`46`) instead of behind them.
-- Fixed exchange resolution in [symbols.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/config/symbols.ts) for online-only derivatives (NFO/BFO) and indices (NSE_INDEX/BSE_INDEX) by implementing a smart `detectOnlineExchange` parser, preventing the "Volume source data unavailable" error on non-equity selections.
-- Added missing `applySettings()` calls to `onSelect` callback triggers across all four technical overlay settings modals ([FixedRangeVolumeProfileModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/FixedRangeVolumeProfileModal.ts), [SessionVolumeProfileModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/SessionVolumeProfileModal.ts), [TpoProfileModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/TpoProfileModal.ts), and [VolumeClusterModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/VolumeClusterModal.ts)), ensuring custom online source symbol updates save and apply to the active overlays immediately.
+- Implemented search-callback support in [SymbolSearchModal.ts](src/ui/SymbolSearchModal.ts) via a custom `onSelect` callback payload to allow selecting any symbol from online search without changing the active chart symbol.
+- Integrated search capability into [getSourceSymbolOptions](src/config/symbols.ts) by displaying the currently active custom symbol and offering a "Search online symbol..." trigger dropdown option when in online mode.
+- Wired search trigger and selection callbacks into the volume source select fields of all drawing overlay settings modals: [SessionVolumeProfileModal.ts](src/ui/SessionVolumeProfileModal.ts), [FixedRangeVolumeProfileModal.ts](src/ui/FixedRangeVolumeProfileModal.ts), [TpoProfileModal.ts](src/ui/TpoProfileModal.ts), and [VolumeClusterModal.ts](src/ui/VolumeClusterModal.ts).
+- Integrated search triggers into [IndicatorSettingsModal.ts](src/ui/IndicatorSettingsModal.ts) for indicator volume source selection (e.g., Volume YSTC) to fully support selecting alternate symbols via search in online mode.
+- Fixed z-index layering in [style.css](src/style.css) by increasing `.symbol-search-modal` z-index to `50` so that it renders in front of settings modals (z-index `45`/`46`) instead of behind them.
+- Fixed exchange resolution in [symbols.ts](src/config/symbols.ts) for online-only derivatives (NFO/BFO) and indices (NSE_INDEX/BSE_INDEX) by implementing a smart `detectOnlineExchange` parser, preventing the "Volume source data unavailable" error on non-equity selections.
+- Added missing `applySettings()` calls to `onSelect` callback triggers across all four technical overlay settings modals ([FixedRangeVolumeProfileModal.ts](src/ui/FixedRangeVolumeProfileModal.ts), [SessionVolumeProfileModal.ts](src/ui/SessionVolumeProfileModal.ts), [TpoProfileModal.ts](src/ui/TpoProfileModal.ts), and [VolumeClusterModal.ts](src/ui/VolumeClusterModal.ts)), ensuring custom online source symbol updates save and apply to the active overlays immediately.
 
 ### Online Historical Paging & Date Navigation
-- Fixed a bug in [onlineLoader.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/onlineLoader.ts)'s cache logic where backward paging requests short-circuited when any bar older than the requested timestamp was found. It now only short-circuits if we have at least 100 bars older than the requested timestamp in cache, allowing scroll-paging to load earlier history seamlessly.
-- Fixed a bug in [GoToDateModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/GoToDateModal.ts) where selected dates outside the currently loaded bar range were clamped to the earliest/latest loaded bar boundaries. It now allows returning the raw selected timestamp if it falls outside the range, triggering a new chart data window fetch to load older history from the server.
+- Fixed a bug in [onlineLoader.ts](src/chart/onlineLoader.ts)'s cache logic where backward paging requests short-circuited when any bar older than the requested timestamp was found. It now only short-circuits if we have at least 100 bars older than the requested timestamp in cache, allowing scroll-paging to load earlier history seamlessly.
+- Fixed a bug in [GoToDateModal.ts](src/ui/GoToDateModal.ts) where selected dates outside the currently loaded bar range were clamped to the earliest/latest loaded bar boundaries. It now allows returning the raw selected timestamp if it falls outside the range, triggering a new chart data window fetch to load older history from the server.
 
 ### Default Online Mode & NIFTY50-INDEX Startup
-- Configured the application to default to `'online'` mode on initial boot in [main.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/main.ts) when no mode is present in `localStorage`.
-- Set the default symbol selection to `NIFTY` on the `NSE_INDEX` exchange with the `D` (Daily) timeframe in online mode in [symbols.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/config/symbols.ts).
-- Modified the main entry point's CSV checking logic in [main.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/main.ts) to only require local CSV file imports when starting in offline mode, allowing online mode to initialize and run perfectly on empty setups.
-- Mapped `NIFTY50` to the correct OpenAlgo live symbol `NIFTY` in `toLiveSymbol` in [onlineLoader.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/onlineLoader.ts) to resolve the Nifty 50 Index correctly and avoid the Symbol 'NIFTY50' not found error on startup.
-
+- Configured the application to default to `'online'` mode on initial boot in [main.ts](src/main.ts) when no mode is present in `localStorage`.
+- Set the default symbol selection to `NIFTY` on the `NSE_INDEX` exchange with the `D` (Daily) timeframe in online mode in [symbols.ts](src/config/symbols.ts).
+- Modified the main entry point's CSV checking logic in [main.ts](src/main.ts) to only require local CSV file imports when starting in offline mode, allowing online mode to initialize and run perfectly on empty setups.
+- Mapped `NIFTY50` to the correct OpenAlgo live symbol `NIFTY` in `toLiveSymbol` in [onlineLoader.ts](src/chart/onlineLoader.ts) to resolve the Nifty 50 Index correctly and avoid the Symbol 'NIFTY50' not found error on startup.
 
 ### Online Mode Timezone Fix
-- Removed the `IST_OFFSET_SECONDS` (+5:30 hours) addition from online history bars in [onlineLoader.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/onlineLoader.ts) and live tick timestamps in [chartInit.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/chartInit.ts).
+- Removed the `IST_OFFSET_SECONDS` (+5:30 hours) addition from online history bars in [onlineLoader.ts](src/chart/onlineLoader.ts) and live tick timestamps in [chartInit.ts](src/chart/chartInit.ts).
 - OpenAlgo returns proper UTC epoch timestamps; KlineCharts already applies the configured `Asia/Kolkata` timezone for display via `chart.setTimezone()`. The IST offset was double-shifting timestamps, causing online candles to appear 5.5 hours ahead of correct market times.
 - Online mode now shows timestamps consistent with offline CSV mode.
 
 ### OpenAlgo WebSocket Real-time Integration
-- Implemented a unified OpenAlgo WebSocket Client in [wsClient.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/openalgo/wsClient.ts) to connect, authenticate with API keys, reply to heartbeats (`ping`/`pong`), auto-reconnect with exponential backoff, and manage subscriptions dynamically.
-- Integrated WebSocket subscriptions with the chart data loader's `subscribeBar` and `unsubscribeBar` callbacks in [chartInit.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/chartInit.ts) to route live quotes (`tick:update`) to the active chart.
+- Implemented a unified OpenAlgo WebSocket Client in [wsClient.ts](src/openalgo/wsClient.ts) to connect, authenticate with API keys, reply to heartbeats (`ping`/`pong`), auto-reconnect with exponential backoff, and manage subscriptions dynamically.
+- Integrated WebSocket subscriptions with the chart data loader's `subscribeBar` and `unsubscribeBar` callbacks in [chartInit.ts](src/chart/chartInit.ts) to route live quotes (`tick:update`) to the active chart.
 - Aligned real-time tick timestamps to current timeframe bar boundaries using UTC epoch milliseconds, consistent with how KlineCharts displays dates via `setTimezone('Asia/Kolkata')`.
-- Wired WebSocket state transitions into [ChartManager.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/ChartManager.ts) to establish connection on startup or mode changes.
-- Integrated real-time market data into the Order Panel in [OrderPanel.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/OrderPanel.ts), dynamically updating bid/ask prices on action/submit buttons and showing a premium, 5-row Depth of Market (DOM) table with relative volume bar backgrounds in the `DOM` tab.
-- Added premium CSS grid styling and background relative bar gradient fills in [style.css](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/style.css) for the DOM table.
+- Wired WebSocket state transitions into [ChartManager.ts](src/chart/ChartManager.ts) to establish connection on startup or mode changes.
+- Integrated real-time market data into the Order Panel in [OrderPanel.ts](src/ui/OrderPanel.ts), dynamically updating bid/ask prices on action/submit buttons and showing a premium, 5-row Depth of Market (DOM) table with relative volume bar backgrounds in the `DOM` tab.
+- Added premium CSS grid styling and background relative bar gradient fills in [style.css](src/style.css) for the DOM table.
 
 ### Countdown to Bar Close
-- Implemented the "Countdown to bar close" setting in [SettingsModal.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/SettingsModal.ts) as a dynamic checkbox bound to scales configuration.
-- Added a `formatExtendText` callback in `buildChartFormatter` inside [chartSettings.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/chartSettings.ts) to compute the remaining duration for the current candlestick.
+- Implemented the "Countdown to bar close" setting in [SettingsModal.ts](src/ui/SettingsModal.ts) as a dynamic checkbox bound to scales configuration.
+- Added a `formatExtendText` callback in `buildChartFormatter` inside [chartSettings.ts](src/chart/chartSettings.ts) to compute the remaining duration for the current candlestick.
 - Verified that countdown calculates correctly using UTC epoch timestamps in online mode, updates dynamically every second, and respects visibility toggles.
 
 ### WebSocket Subscription Cleanup (Ghost Candles & Daily Stats Fix)
-- Implemented a local `activeSubscriptions` Map in [chartInit.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/chartInit.ts) to track the exact subscription parameters (exchange, fileCode) associated with a symbol ticker and timeframe.
+- Implemented a local `activeSubscriptions` Map in [chartInit.ts](src/chart/chartInit.ts) to track the exact subscription parameters (exchange, fileCode) associated with a symbol ticker and timeframe.
 - Updated `unsubscribeBar` inside `createDataLoader` to retrieve the correct parameters from `activeSubscriptions` and unsubscribe the event handler from `eventBus` and the feed from `wsClient`, resolving the timing mismatch where active selections updated before unsubscribe events occurred.
 - Modified the real-time quote tick processor inside `subscribeBar` to calculate timeframe-specific candle bounds incrementally from the chart's current candles (`chart.getDataList()`) instead of mapping open/high/low to the broker's daily session statistics.
-- Added a `mode:change` listener in [chartInit.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/chart/chartInit.ts) to cleanly unsubscribe event handlers and clear local state maps when switching to offline mode.
-- Modified `wsClient.disconnect()` in [wsClient.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/openalgo/wsClient.ts) to clear the active subscriptions map, preventing stale subscriptions from reconnecting when returning online.
+- Added a `mode:change` listener in [chartInit.ts](src/chart/chartInit.ts) to cleanly unsubscribe event handlers and clear local state maps when switching to offline mode.
+- Modified `wsClient.disconnect()` in [wsClient.ts](src/openalgo/wsClient.ts) to clear the active subscriptions map, preventing stale subscriptions from reconnecting when returning online.
 
 ### Search Modal UI & Focus
-- Fixed focus and selection cursor loss in the Symbol Search Modal and Indicator Modal by adding focus and text selection preservation logic across state re-renders in [BaseComponent](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/BaseComponent.ts).
-- Added the search icon to the SVG sprite sheet in [icons.svg](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/public/icons.svg) and registered `'search'` in [icons.ts](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/icons.ts).
-- Redesigned the search input in the [SymbolSearchModal](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/SymbolSearchModal.ts) and [IndicatorModal](file:///d:/Devs/codetest-og/klinecharts-v10.0.0-beta3/src/ui/IndicatorModal.ts) to be a modern floating search bar with rounded corners, a subtle background, active focus transitions, and highlight effects.
+- Fixed focus and selection cursor loss in the Symbol Search Modal and Indicator Modal by adding focus and text selection preservation logic across state re-renders in [BaseComponent](src/ui/BaseComponent.ts).
+- Added the search icon to the SVG sprite sheet in [icons.svg](public/icons.svg) and registered `'search'` in [icons.ts](src/ui/icons.ts).
+- Redesigned the search input in the [SymbolSearchModal](src/ui/SymbolSearchModal.ts) and [IndicatorModal](src/ui/IndicatorModal.ts) to be a modern floating search bar with rounded corners, a subtle background, active focus transitions, and highlight effects.
 
 ## 2026-06-15
 
